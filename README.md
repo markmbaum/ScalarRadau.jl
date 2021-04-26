@@ -4,19 +4,24 @@
 [![Coverage](https://codecov.io/gh/wordsworthgroup/ScalarRadau.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/wordsworthgroup/ScalarRadau.jl)
 
 This module implements the 5th order, Radau IIA method for solving a **scalar** ordinary differential equation (ODE).
-* The method is stiffly accurate, B-stable, fully-implicit, and therefore very effective for stiff equations.
+* The method is famously effective with stiff equations.
 * Implementation mostly follows the description in chapter IV.8 in [Solving Ordinary Differential Equations II](https://www.springer.com/gp/book/9783540604525), by Ernst Hairer and Gerhard Wanner.
-* Step size is adaptive.
+* Step size is adaptive and the initial step size is chosen automatically.
 * Functions implemented here expect to use `Float64` numbers.
 * Dense output for continuous solutions is implemented using cubic Hermite interpolation.
 * Approximate Jacobian evaluation is performed with a finite difference.
-* Because the equation is scalar and the method has three stages, the size of the Jacobian is always 3 by 3 and [StaticArrays.jl](https://github.com/JuliaArrays/StaticArrays.jl) is used for the Newton iterations.
+* Because the equation is scalar and the method has three stages, the Jacobian is always a 3 x 3 matrix. [StaticArrays.jl](https://github.com/JuliaArrays/StaticArrays.jl) is used for blazing fast Newton iterations.
 
-The implementation here is designed for repeated solution of a scalar ODE using different parameters, initial conditions, or solution intervals. Julia's compiler will specialize with your particular ODE.
+The implementation here is useful for any scenario where a stiff, scalar ODE must be solved repeatedly under different conditions. The solver functions specialize directly on the ODE provided. This is slightly different than [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl), which uses a two-step system of defining an ODE problem with one function then solving it with another function.
 
 For a nice overview of Radau methods and their utility, check out: [Stiff differential equations solved by Radau methods](https://www.sciencedirect.com/science/article/pii/S037704279900134X).
 
 ### Quick Start
+
+Install using Julia's package manager
+```shell
+julia> ]add ScalarRadau
+```
 
 To solve an ODE, first define the derivative `dy/dx` in the form of a function, then call the `radau` function.
 ```julia
@@ -26,11 +31,9 @@ x, y = radau(F, 1, 0, 2, 25)
 ```
 The snippet above solves the equation `dy/dx = -y`, starting at `y=1`, between `x=0` and `x=2`, and returns 25 evenly spaced points in the solution interval.
 
-### Details
+### In-place Solution
 
-##### In-place Solution
-
-For maximum control over output points, the in-place function is
+For full control over output points, the in-place function is
 
 ```julia
 radau!(yout, xout, F, y₀, x₀, xₙ, param=nothing; rtol=1e-6, atol=1e-6, facmax=100.0, facmin=0.01, κ=1e-3, ϵ=0.25, maxnwt=7, maxstp=1000000)
@@ -57,7 +60,7 @@ Keyword arguments are
 
 Two other functions are available for convenience, both of which use the in-place version internally.
 
-##### Evenly Spaced Output
+### Evenly Spaced Output
 
 For evenly spaced output points (as in the quick start example) the function definition is
 
@@ -67,7 +70,7 @@ radau(F, y₀, x₀, xₙ, nout, param=nothing; kwargs...)
 
 In this case, you must specify the number of output points with the `nout` argument. Keyword arguments and default values are the same as above. Solution vectors for `x` and `y` are returned.
 
-##### End Point Output
+### End-point Output
 
 To compute only the `y` value at the end of the integration interval (`xₙ`), the function is
 ```julia
