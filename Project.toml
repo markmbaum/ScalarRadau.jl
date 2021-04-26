@@ -3,6 +3,9 @@ uuid = "52145ff8-3717-48bc-b8ab-44d3704098ee"
 authors = ["Mark Baum <markbaum@g.harvard.edu>"]
 version = "0.1.0"
 
+[deps]
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
 [compat]
 julia = "1"
 
