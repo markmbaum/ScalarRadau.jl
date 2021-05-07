@@ -12,7 +12,7 @@ This module implements the 5th order, Radau IIA method for solving a **scalar** 
 * Approximate Jacobian evaluation is performed with a finite difference.
 * Because the equation is scalar and the method has three stages, the Jacobian is always a 3 x 3 matrix. [StaticArrays.jl](https://github.com/JuliaArrays/StaticArrays.jl) is used for blazing fast Newton iterations.
 
-The implementation here is useful for any scenario where a stiff, scalar ODE must be solved repeatedly under different conditions. The solver functions specialize directly on the ODE provided. This is slightly different than [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl), which uses a two-step system of defining an ODE problem with one function then solving it with another function.
+The implementation here is useful for any scenario where a stiff, scalar ODE must be solved repeatedly under different conditions. The solver functions specialize directly on the ODE provided. This is slightly different than [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl), which uses a two-step system of defining an ODE problem with one function then solving it with another function. For stiff systems of equations, see [here](https://diffeq.sciml.ai/stable/solvers/ode_solve/#Stiff-Problems).
 
 For a nice overview of Radau methods and their utility, check out: [Stiff differential equations solved by Radau methods](https://www.sciencedirect.com/science/article/pii/S037704279900134X).
 

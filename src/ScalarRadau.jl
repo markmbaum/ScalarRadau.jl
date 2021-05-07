@@ -56,7 +56,8 @@ function hinit(x₀::Float64,
                rtol::Float64)::Float64
     x = max(abs(x₀), abs(xₙ))
     d = (1/x)^6 + abs(f)^6
-    return ((atol + rtol)/d)^(1/6)
+    h = ((atol + rtol)/d)^(1/6)
+    return min(h, xₙ - x₀)
 end
 
 #-------------------------------------------------------------------------------
