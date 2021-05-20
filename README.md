@@ -1,6 +1,7 @@
 # ScalarRadau
 
 [![Build Status](https://github.com/wordsworthgroup/ScalarRadau.jl/workflows/CI/badge.svg)](https://github.com/wordsworthgroup/ScalarRadau.jl/actions)
+[![Codecov](https://img.shields.io/codecov/c/github/wordsworthgroup/ScalarRadau.jl?logo=Codecov)](https://app.codecov.io/gh/wordsworthgroup/ScalarRadau.jl)
 
 This module implements the 5th order, [Radau IIA method](https://link.springer.com/referenceworkentry/10.1007%2F978-3-540-70529-1_139) for a **scalar** ordinary differential equation (ODE), in Julia. The algorithm is famously effective for stiff ODEs. Implementation mostly follows the description in chapter IV.8 in [Solving Ordinary Differential Equations II](https://www.springer.com/gp/book/9783540604525), by Ernst Hairer and Gerhard Wanner, with a couple small changes that were found to be beneficial for scalar equations.
 * Step size is adaptive and the initial step size is chosen automatically.
