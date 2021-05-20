@@ -69,7 +69,7 @@ function radau(F::T,
                xₙ::Real,
                param=nothing;
                kwargs...
-               )::Float64 where {T<:Function}
+               )::Float64 where {T}
     radau!([], [], F, y₀, x₀, xₙ, param; kwargs...)
 end
 
@@ -80,7 +80,7 @@ function radau(F::T,
                nout::Int,
                param=nothing;
                kwargs...
-               )::Tuple{Vector{Float64},Vector{Float64}} where {T<:Function}
+               )::Tuple{Vector{Float64},Vector{Float64}} where {T}
     @assert nout > 1 "number of output points should be greater than 1"
     #evenly spaced output points
     x = LinRange(x₀, xₙ, nout)
@@ -105,7 +105,7 @@ function radau!(yout::AbstractVector, #output values to fill
                 ϵ::Float64=0.25, #finite diff fraction of step size
                 maxnwt::Int=7, #max Newton iterations before h reduction
                 maxstp::Int=1000000, #maximum number of steps before error
-                )::Float64 where {T<:Function}
+                )::Float64 where {T}
     #check direction
     @assert xₙ >= x₀
     #output points

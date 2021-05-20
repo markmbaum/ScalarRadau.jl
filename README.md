@@ -28,6 +28,8 @@ x, y = radau(F, 1, 0, 2, 25)
 ```
 The snippet above solves the equation `dy/dx = -y`, starting at `y=1`, between `x=0` and `x=2`, and returns 25 evenly spaced points in the solution interval.
 
+The "function" `F` can be any callable object, as long as it can be called with `(x, y, param)` arguments.
+
 ### In-place Solution
 
 For full control over output points, the in-place function is
@@ -55,7 +57,7 @@ Keyword arguments are
 * `κ` (kappa) - stopping tolerance for Newton iterations
 * `ϵ` (epsilon) - fraction of current step size used for finite difference Jacobian approximation
 * `maxnwt` - maximum number of Newton iterations before step size reduction
-* `maxstp` - maximum number of steps for the solver stops and throws an error
+* `maxstp` - maximum number of steps befor the solver stops and throws an error
 
 Two other functions are available to make different output options convenient. Both of them use the in-place version internally.
 
