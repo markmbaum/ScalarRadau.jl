@@ -2,7 +2,7 @@ module ScalarRadau
 
 export radau, radau!
 
-using StaticArrays: MMatrix, MVector
+using StaticArrays: MMatrix, MVector, SMatrix, SVector
 
 #-------------------------------------------------------------------------------
 #RK tableau for RadauIIA 5th order
@@ -30,19 +30,22 @@ const e₃ = -1/3
 #-------------------------------------------------------------------------------
 #initialization functions
 
-function Jinit!(J::MMatrix{3,3,Float64,9}, h::Float64, ∂f::Float64)
-    J[1,1] = 1.0 - h*a₁₁*∂f
-    J[1,2] =     - h*a₁₂*∂f
-    J[1,3] =     - h*a₁₃*∂f
-    J[2,1] =     - h*a₂₁*∂f
-    J[2,2] = 1.0 - h*a₂₂*∂f
-    J[2,3] =     - h*a₂₃*∂f
-    J[3,1] =     - h*a₃₁*∂f
-    J[3,2] =     - h*a₃₂*∂f
-    J[3,3] = 1.0 - h*a₃₃*∂f
+function Jacobian(h::Float64, ∂f::Float64)::SMatrix{3,3,Float64,9}
+    #column-major storage   
+    SMatrix{3,3,Float64,9}(
+        1.0 - h*a₁₁*∂f,
+        -h*a₂₁*∂f,
+        -h*a₃₁*∂f,
+        -h*a₁₂*∂f,
+        1.0 - h*a₂₂*∂f,
+        -h*a₃₂*∂f,
+        -h*a₁₃*∂f,
+        -h*a₂₃*∂f,
+        1.0 - h*a₃₃*∂f
+    )
 end
 
-function xinit(x::Float64, h::Float64)::Tuple{Float64,Float64,Float64}
+function xinit(x::Float64, h::Float64)::NTuple{3,Float64}
     x₁ = x + h*c₁
     x₂ = x + h*c₂
     x₃ = x + h*c₃
@@ -123,9 +126,6 @@ function radau!(yout::AbstractVector, #output values to fill
     h = min(h₁, h₂)
     #allocation, essentially, to keep f₃ in scope
     f₃ = 0.0
-    #static (and mutable) arrays for super quick linalg
-    J = MMatrix{3,3,Float64,9}(undef)
-    β = MVector{3,Float64}(undef)
     #counter
     nstp = 0
     while x < xₙ
@@ -134,7 +134,7 @@ function radau!(yout::AbstractVector, #output values to fill
         #finite diff ∂f/∂y, precision not necessary in practice, can also hurt
         ∂f = (F(x, y + h*ϵ, param) - f₀)/(h*ϵ)
         #jacobian matrix
-        Jinit!(J, h, ∂f)
+        J = Jacobian(h, ∂f)
         #x coordinates for function evaluations inside interval
         x₁, x₂, x₃ = xinit(x, h)
         #initial newton guesses, extrapolation appears to make things slower
@@ -148,9 +148,9 @@ function radau!(yout::AbstractVector, #output values to fill
             if nnwt == maxnwt
                 #count the convergence failure
                 nfail += 1
-                #prevent possible unending explosions
+                #cut off unending disasters
                 if nfail == 10
-                    throw("repeated Newton convergence failures ($nfail) in Radau")
+                    error("repeated Newton convergence failures ($nfail) in Radau")
                 end
                 #steeply reduce step size
                 h /= 10.0
@@ -158,7 +158,7 @@ function radau!(yout::AbstractVector, #output values to fill
                 nnwt = 0
                 #reinitialize with the new step size
                 ∂f = (F(x, y + h*ϵ, param) - f₀)/(h*ϵ)
-                Jinit!(J, h, ∂f)
+                J = Jacobian(h, ∂f)
                 x₁, x₂, x₃ = xinit(x, h)
                 z₁, z₂, z₃ = 0.0, 0.0, 0.0
             end
@@ -166,10 +166,12 @@ function radau!(yout::AbstractVector, #output values to fill
             f₁ = F(x₁, y + z₁, param)
             f₂ = F(x₂, y + z₂, param)
             f₃ = F(x₃, y + z₃, param)
-            #newton system evaluation β = (h * Af)- z
-            β[1] = h*(a₁₁*f₁ + a₁₂*f₂ + a₁₃*f₃) - z₁
-            β[2] = h*(a₂₁*f₁ + a₂₂*f₂ + a₂₃*f₃) - z₂
-            β[3] = h*(a₃₁*f₁ + a₃₂*f₂ + a₃₃*f₃) - z₃
+            #newton system evaluation β = (h * Af) - z
+            β = SVector{3,Float64}(
+                h*(a₁₁*f₁ + a₁₂*f₂ + a₁₃*f₃) - z₁,
+                h*(a₂₁*f₁ + a₂₂*f₂ + a₂₃*f₃) - z₂,
+                h*(a₃₁*f₁ + a₃₂*f₂ + a₃₃*f₃) - z₃
+            )
             #solve the linear system
             δ₁, δ₂, δ₃ = J\β
             #update
@@ -213,7 +215,7 @@ function radau!(yout::AbstractVector, #output values to fill
         #count
         nstp += 1
         if nstp == maxstp
-            throw("unusually high number of steps/attempts ($maxstp) in radau, nx=$x y=$y h=$h")
+            error("unusually high number of steps/attempts ($maxstp) in radau, nx=$x y=$y h=$h")
         end
         #safety factor, loosely dependent on number of newton iterations
         facsaf = 0.9*(maxnwt + 1)/(maxnwt + nnwt)

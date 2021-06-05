@@ -13,3 +13,9 @@ x, y = radau(F, 0, 0, 6, 100, atol=1e-9, rtol=1e-9)
 #test with end-point output only
 yₙ = radau(F, 0, 0, 6, atol=1e-9, rtol=1e-9)
 @test abs(yₙ - S(6)) < 1e-6
+
+#test for convergence failure
+@test_throws ErrorException radau((x,y,p)->rand(), 0, 0, 1, atol=1e-9, rtol=1e-9)
+
+#test for max steps failure
+@test_throws ErrorException radau(F, 0, 0, 1e6, atol=1e-9, rtol=1e-9, maxstp=1)
