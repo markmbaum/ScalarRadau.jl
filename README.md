@@ -3,6 +3,23 @@
 [![Build Status](https://github.com/wordsworthgroup/ScalarRadau.jl/workflows/CI/badge.svg)](https://github.com/wordsworthgroup/ScalarRadau.jl/actions)
 [![Codecov](https://img.shields.io/codecov/c/github/wordsworthgroup/ScalarRadau.jl?logo=Codecov)](https://app.codecov.io/gh/wordsworthgroup/ScalarRadau.jl)
 
+Solve a stiff, scalar differential equation accurately
+```julia
+using BenchmarkTools, ScalarRadau, Plots
+F(x, y, p) = 50*(cos(x) - y)
+x, y = radau(F, 0, 0, 3, 1000)
+plot(x, y, legend=false, xlabel="x", ylabel="y")
+```
+![example](img/example.png)
+
+and efficiently
+```julia
+@btime radau(F, 0, 0, 3);
+  5.367 μs (0 allocations: 0 bytes)
+```
+
+-----
+
 This module implements the 5th order, [Radau IIA method](https://link.springer.com/referenceworkentry/10.1007%2F978-3-540-70529-1_139) for a **scalar** ordinary differential equation (ODE), in Julia. The algorithm is famously effective for stiff ODEs. Implementation mostly follows the description in chapter IV.8 in [Solving Ordinary Differential Equations II](https://www.springer.com/gp/book/9783540604525), by Ernst Hairer and Gerhard Wanner, with a couple small changes that were found to be beneficial for scalar equations.
 * Step size is adaptive and the initial step size is chosen automatically.
 * Functions implemented here expect to use `Float64` numbers.

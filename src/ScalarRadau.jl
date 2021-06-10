@@ -2,7 +2,7 @@ module ScalarRadau
 
 export radau, radau!
 
-using StaticArrays: MMatrix, MVector, SMatrix, SVector
+using StaticArrays: SMatrix, SVector
 
 #-------------------------------------------------------------------------------
 #RK tableau for RadauIIA 5th order
@@ -28,20 +28,20 @@ const e₂ = (-13 + 7*√6)/3
 const e₃ = -1/3
 
 #-------------------------------------------------------------------------------
-#initialization functions
+#support functions
 
-function Jacobian(h::Float64, ∂f::Float64)::SMatrix{3,3,Float64,9}
+function Jacobian(h::Float64, dfdy::Float64)::SMatrix{3,3,Float64,9}
     #column-major storage   
     SMatrix{3,3,Float64,9}(
-        1.0 - h*a₁₁*∂f,
-        -h*a₂₁*∂f,
-        -h*a₃₁*∂f,
-        -h*a₁₂*∂f,
-        1.0 - h*a₂₂*∂f,
-        -h*a₃₂*∂f,
-        -h*a₁₃*∂f,
-        -h*a₂₃*∂f,
-        1.0 - h*a₃₃*∂f
+        1.0 - h*a₁₁*dfdy,
+        -h*a₂₁*dfdy,
+        -h*a₃₁*dfdy,
+        -h*a₁₂*dfdy,
+        1.0 - h*a₂₂*dfdy,
+        -h*a₃₂*dfdy,
+        -h*a₁₃*dfdy,
+        -h*a₂₃*dfdy,
+        1.0 - h*a₃₃*dfdy
     )
 end
 
@@ -73,7 +73,7 @@ function radau(F::T,
                param=nothing;
                kwargs...
                )::Float64 where {T}
-    radau!([], [], F, y₀, x₀, xₙ, param; kwargs...)
+    radau!((), (), F, y₀, x₀, xₙ, param; kwargs...)
 end
 
 function radau(F::T,
@@ -83,7 +83,7 @@ function radau(F::T,
                nout::Int,
                param=nothing;
                kwargs...
-               )::Tuple{Vector{Float64},Vector{Float64}} where {T}
+               )::NTuple{2,Vector{Float64}} where {T}
     @assert nout > 1 "number of output points should be greater than 1"
     #evenly spaced output points
     x = LinRange(x₀, xₙ, nout)
@@ -93,8 +93,8 @@ function radau(F::T,
     return x, y
 end
 
-function radau!(yout::AbstractVector, #output values to fill
-                xout::AbstractVector, #output coordinates
+function radau!(yout::Union{AbstractVector{<:Real},Tuple}, #output values to fill
+                xout::Union{AbstractVector{<:Real},Tuple}, #output coordinates
                 F::T, #differential equation dy/dx = F(x,y,param)
                 y₀::Real, #initial value
                 x₀::Real, #initial coordinate
@@ -107,7 +107,7 @@ function radau!(yout::AbstractVector, #output values to fill
                 κ::Float64=1e-3, #Newton stopping tuner
                 ϵ::Float64=0.25, #finite diff fraction of step size
                 maxnwt::Int=7, #max Newton iterations before h reduction
-                maxstp::Int=1000000, #maximum number of steps before error
+                maxstp::Int=1000000 #maximum number of steps before error
                 )::Float64 where {T}
     #check direction
     @assert xₙ >= x₀
@@ -131,10 +131,11 @@ function radau!(yout::AbstractVector, #output values to fill
     while x < xₙ
         #don't overshoot the end of the integration interval
         h = min(h, xₙ - x)
-        #finite diff ∂f/∂y, precision not necessary in practice, can also hurt
-        ∂f = (F(x, y + h*ϵ, param) - f₀)/(h*ϵ)
+        #finite diff dF/dy, precision not necessary in practice, can also hurt
+        dy = ϵ*h
+        dfdy = (F(x, y + dy, param) - f₀)/dy
         #jacobian matrix
-        J = Jacobian(h, ∂f)
+        J = Jacobian(h, dfdy)
         #x coordinates for function evaluations inside interval
         x₁, x₂, x₃ = xinit(x, h)
         #initial newton guesses, extrapolation appears to make things slower
@@ -142,8 +143,8 @@ function radau!(yout::AbstractVector, #output values to fill
         #newton iterations
         ΔZ = Inf # ∞ norm of changes to solution
         η = κ*(rtol*abs(y) + atol) #termination threshold
-        nnwt = 0
-        nfail = 0
+        nnwt::Int64 = 0
+        nfail::Int64 = 0
         while ΔZ > η
             if nnwt == maxnwt
                 #count the convergence failure
@@ -157,8 +158,9 @@ function radau!(yout::AbstractVector, #output values to fill
                 #wipe the iteration counter
                 nnwt = 0
                 #reinitialize with the new step size
-                ∂f = (F(x, y + h*ϵ, param) - f₀)/(h*ϵ)
-                J = Jacobian(h, ∂f)
+                dy = ϵ*h
+                dfdy = (F(x, y + dfdy, param) - f₀)/dfdy
+                J = Jacobian(h, dfdy)
                 x₁, x₂, x₃ = xinit(x, h)
                 z₁, z₂, z₃ = 0.0, 0.0, 0.0
             end
@@ -215,7 +217,7 @@ function radau!(yout::AbstractVector, #output values to fill
         #count
         nstp += 1
         if nstp == maxstp
-            error("unusually high number of steps/attempts ($maxstp) in radau, nx=$x y=$y h=$h")
+            error("maximum number of steps/attempts ($maxstp) reached in radau @ nx=$x y=$y h=$h")
         end
         #safety factor, loosely dependent on number of newton iterations
         facsaf = 0.9*(maxnwt + 1)/(maxnwt + nnwt)
