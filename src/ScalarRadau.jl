@@ -1,8 +1,8 @@
 module ScalarRadau
 
-export radau, radau!
-
 using StaticArrays: SMatrix, SVector
+
+export radau, radau!
 
 #-------------------------------------------------------------------------------
 #RK tableau for RadauIIA 5th order
@@ -31,17 +31,19 @@ const e₃ = -1/3
 #support functions
 
 function Jacobian(h::Float64, dfdy::Float64)::SMatrix{3,3,Float64,9}
+    #temporary
+    q::Float64 = h*dfdy
     #column-major storage   
     SMatrix{3,3,Float64,9}(
-        1.0 - h*a₁₁*dfdy,
-        -h*a₂₁*dfdy,
-        -h*a₃₁*dfdy,
-        -h*a₁₂*dfdy,
-        1.0 - h*a₂₂*dfdy,
-        -h*a₃₂*dfdy,
-        -h*a₁₃*dfdy,
-        -h*a₂₃*dfdy,
-        1.0 - h*a₃₃*dfdy
+        1.0 - a₁₁*q,
+        -a₂₁*q,
+        -a₃₁*q,
+        -a₁₂*q,
+        1.0 - a₂₂*q,
+        -a₃₂*q,
+        -a₁₃*q,
+        -a₂₃*q,
+        1.0 - a₃₃*q
     )
 end
 
@@ -64,8 +66,9 @@ function hinit(x₀::Float64,
 end
 
 #-------------------------------------------------------------------------------
-#main functions
+# wrappers, basically
 
+#convenience function for end-point only
 function radau(F::T,
                y₀::Real,
                x₀::Real,
@@ -76,6 +79,7 @@ function radau(F::T,
     radau!((), (), F, y₀, x₀, xₙ, param; kwargs...)
 end
 
+#convenience function for evenly spaced dense output
 function radau(F::T,
                y₀::Real,
                x₀::Real,
@@ -92,6 +96,9 @@ function radau(F::T,
     radau!(y, x, F, y₀, x₀, xₙ, param; kwargs...)
     return x, y
 end
+
+#-------------------------------------------------------------------------------
+#main function
 
 function radau!(yout::Union{AbstractVector{<:Real},Tuple}, #output values to fill
                 xout::Union{AbstractVector{<:Real},Tuple}, #output coordinates
