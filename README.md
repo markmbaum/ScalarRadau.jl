@@ -3,19 +3,19 @@
 [![Build Status](https://github.com/wordsworthgroup/ScalarRadau.jl/workflows/CI/badge.svg)](https://github.com/wordsworthgroup/ScalarRadau.jl/actions)
 [![Codecov](https://img.shields.io/codecov/c/github/wordsworthgroup/ScalarRadau.jl?logo=Codecov)](https://app.codecov.io/gh/wordsworthgroup/ScalarRadau.jl)
 
-Solve a stiff, scalar differential equation accurately
+Solve a stiff, scalar differential equation accurately,
 ```julia
 using BenchmarkTools, ScalarRadau, Plots
-F(x, y, p) = 50*(cos(x) - y)
-x, y = radau(F, 0, 0, 3, 1000)
-plot(x, y, legend=false, xlabel="x", ylabel="y")
+F(x, y, p) = 50*(cos(x) - y);
+x, y = radau(F, 0.1, 0, 3, 1000);
+plot(x, y, legend=false, xlabel="x", ylabel="y");
 ```
 ![example](img/example.png)
 
-and efficiently
+and efficiently.
 ```julia
-@btime radau(F, 0, 0, 3);
-  5.367 μs (0 allocations: 0 bytes)
+@btime radau(F, 0.1, 0.0, 3.0, 100);
+  5.667 μs (2 allocations: 1.75 KiB)
 ```
 
 -----
@@ -25,7 +25,7 @@ This module implements the 5th order, [Radau IIA method](https://link.springer.c
 * Functions implemented here expect to use `Float64` numbers.
 * Dense output for continuous solutions is implemented using cubic Hermite interpolation.
 * Approximate Jacobian evaluation is performed with a finite difference.
-* Because the equation is scalar and the method has three stages, the Jacobian is always a 3 x 3 matrix. [Static arrays](https://github.com/JuliaArrays/StaticArrays.jl) are used for efficient Newton iterations.
+* Because the equation is scalar and the 5th order Radau method has three stages, the Jacobian is always a 3 x 3 matrix. [Static arrays](https://github.com/JuliaArrays/StaticArrays.jl) are used for efficient Newton iterations.
 
 The implementation here is useful for any scenario where a stiff, scalar ODE must be solved repeatedly under different conditions. For example, you might need to solve the same stiff ODE with a range of different initial conditions or with many sets of system parameters. The solver functions specialize directly on the ODE provided, making them fast. This is slightly different than [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl), which uses a two-step system of defining an ODE problem with one function then solving it with another function, but if you need to solve a stiff system of ODEs instead of a scalar equation, look [here](https://diffeq.sciml.ai/stable/solvers/ode_solve/#Stiff-Problems).
 
