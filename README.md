@@ -14,7 +14,7 @@ plot(x, y, legend=false, xlabel="x", ylabel="y");
 
 and efficiently.
 ```julia
-@btime radau(F, 0.1, 0.0, 3.0, 100);
+@btime radau($F, 0.1, 0.0, 3.0, 100);
   5.667 μs (2 allocations: 1.75 KiB)
 ```
 
