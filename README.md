@@ -1,7 +1,7 @@
 # ScalarRadau
 
-[![Build Status](https://github.com/wordsworthgroup/ScalarRadau.jl/workflows/CI/badge.svg)](https://github.com/wordsworthgroup/ScalarRadau.jl/actions)
-[![Codecov](https://img.shields.io/codecov/c/github/wordsworthgroup/ScalarRadau.jl?logo=Codecov)](https://app.codecov.io/gh/wordsworthgroup/ScalarRadau.jl)
+[![Build Status](https://github.com/markmbaum/ScalarRadau.jl/workflows/CI/badge.svg)](https://github.com/markmbaum/ScalarRadau.jl/actions)
+[![Codecov](https://img.shields.io/codecov/c/github/markmbaum/ScalarRadau.jl?logo=Codecov)](https://app.codecov.io/gh/markmbaum/ScalarRadau.jl)
 
 Solve a stiff, scalar differential equation accurately,
 ```julia
