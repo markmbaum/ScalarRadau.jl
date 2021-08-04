@@ -263,7 +263,7 @@ function radau!(yout::Union{AbstractVector{<:Real},Tuple}, #output values to fil
             x += h
             y += z₃
             #dense output
-            if (jout <= nout) && ((x > xout[jout]) | (x ≈ xout[jout]))
+            @inbounds if (jout <= nout) && ((x > xout[jout]) | (x ≈ xout[jout]))
                 #set up cubic Hermite
                 u = h*f₀
                 v = h*f₃
