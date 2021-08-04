@@ -270,9 +270,9 @@ function radau!(yout::Union{AbstractVector{<:Real},Tuple}, #output values to fil
                 H₃ =  2yₚ  + u - 2y + v
                 H₂ = -3yₚ - 2u + 3y - v
                 #interpolate at all points that have been passed or met
-                while (jout <= nout) && (x >= xout[jout])
-                    ξ = (xout[jout] - xₚ)/h
-                    yout[jout] = yₚ + ξ*(u + ξ*(H₂ + ξ*H₃))
+                @inbounds while (jout <= nout) && (x >= xout[jout])
+                    @inbounds ξ = (xout[jout] - xₚ)/h
+                    @inbounds yout[jout] = yₚ + ξ*(u + ξ*(H₂ + ξ*H₃))
                     jout += 1
                 end
             end

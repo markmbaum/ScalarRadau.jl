@@ -3,7 +3,7 @@
 [![Build Status](https://github.com/markmbaum/ScalarRadau.jl/workflows/CI/badge.svg)](https://github.com/markmbaum/ScalarRadau.jl/actions)
 [![Codecov](https://img.shields.io/codecov/c/github/markmbaum/ScalarRadau.jl?logo=Codecov)](https://app.codecov.io/gh/markmbaum/ScalarRadau.jl)
 
-Solve a stiff, scalar differential equation accurately,
+Solve a stiff, *scalar* differential equation accurately and efficiently
 ```julia
 using BenchmarkTools, ScalarRadau, Plots
 F(x, y, p) = 50*(cos(x) - y);
@@ -14,13 +14,15 @@ plot(x, y, legend=false, xlabel="x", ylabel="y");
 
 and efficiently.
 ```julia
-@btime radau($F, 0.1, 0.0, 3.0, 100);
+x = LinRange(0, 3, 100)
+y = zeros(100)
+@btime radau!($y, $x, $F, 0.1, 0.0, 3.0);
   5.667 μs (2 allocations: 1.75 KiB)
 ```
 
 -----
 
-This module contains a lightest-weight implementation of the classic 5th order [Radau IIA method](https://link.springer.com/referenceworkentry/10.1007%2F978-3-540-70529-1_139) for a **scalar** ordinary differential equation (ODE) in Julia. The algorithm is famously effective for stiff ODEs. Implementation mostly follows the description in chapter IV.8 in [Solving Ordinary Differential Equations II](https://www.springer.com/gp/book/9783540604525), by Ernst Hairer and Gerhard Wanner, with a couple small changes that were found to be beneficial for scalar equations.
+This module contains a lightweight implementation of the classic 5th order [Radau IIA method](https://link.springer.com/referenceworkentry/10.1007%2F978-3-540-70529-1_139) for a **scalar** ordinary differential equation (ODE) in Julia. The algorithm is famously effective for stiff ODEs. Implementation mostly follows the description in chapter IV.8 in [Solving Ordinary Differential Equations II](https://www.springer.com/gp/book/9783540604525), by Ernst Hairer and Gerhard Wanner, with a couple small changes that were found to be beneficial for scalar equations.
 
 Some basic points of description:
 * Step size is adaptive and the initial step size is chosen automatically.
@@ -31,9 +33,9 @@ Some basic points of description:
 
 The implementation here is designed for a scenario where a stiff, scalar ODE must be solved repeatedly under different conditions. For example, you might need to solve the same stiff ODE with a range of different initial conditions or with many sets of system parameters. The module was originally written to solve the [Schwarzschild equation for radiative transfer](https://en.wikipedia.org/wiki/Schwarzschild%27s_equation_for_radiative_transfer) as part of [ClearSky.jl](https://github.com/markmbaum/ClearSky.jl), but it seemed like a good idea to split it off into its own repository.
 
-The solver functions specialize directly on the ODE provided. This is slightly different than [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl), which uses a two-step system of defining an ODE problem with one function then solving it with another function, but if you need to solve a stiff system of ODEs instead of a scalar equation, look [here](https://diffeq.sciml.ai/stable/solvers/ode_solve/#Stiff-Problems).
+The solver functions specialize directly on the ODE provided. This is slightly different than [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl), which uses a two-step system of defining an ODE problem with one function then solving it with another function, but if you need to solve a stiff system of ODEs instead of a scalar equation, look [here](https://diffeq.sciml.ai/stable/solvers/ode_solve/#Stiff-Problems). Specifically, the vector implementation of the same Radau method is called [`RadauIIA5`](https://diffeq.sciml.ai/stable/solvers/ode_solve/#Fully-Implicit-Runge-Kutta-Methods-(FIRK)).
 
-For a nice overview of Radau methods and their utility, check out: [Stiff differential equations solved by Radau methods](https://www.sciencedirect.com/science/article/pii/S037704279900134X).
+For a nice mathematical overview of Radau methods, check out: [Stiff differential equations solved by Radau methods](https://www.sciencedirect.com/science/article/pii/S037704279900134X).
 
 ### How to Use `ScalarRadau`
 
