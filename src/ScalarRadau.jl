@@ -239,7 +239,7 @@ function radau!(yout::Union{AbstractVector{<:Real},Tuple}, #output values to fil
                 h*(a₂₁*f₁ + a₂₂*f₂ + a₂₃*f₃) - z₂,
                 h*(a₃₁*f₁ + a₃₂*f₂ + a₃₃*f₃) - z₃
             )
-            #solve the linear system
+            #solve the linear system J*δ = β
             δ₁, δ₂, δ₃ = J\β
             #update
             z₁ += δ₁
@@ -263,17 +263,19 @@ function radau!(yout::Union{AbstractVector{<:Real},Tuple}, #output values to fil
             x += h
             y += z₃
             #dense output
-            @inbounds if (jout <= nout) && ((x > xout[jout]) | (x ≈ xout[jout]))
-                #set up cubic Hermite
-                u = h*f₀
-                v = h*f₃
-                H₃ =  2yₚ  + u - 2y + v
-                H₂ = -3yₚ - 2u + 3y - v
-                #interpolate at all points that have been passed or met
-                @inbounds while (jout <= nout) && (x >= xout[jout])
-                    @inbounds ξ = (xout[jout] - xₚ)/h
-                    @inbounds yout[jout] = yₚ + ξ*(u + ξ*(H₂ + ξ*H₃))
-                    jout += 1
+            @inbounds begin 
+                if (jout <= nout) && ((x > xout[jout]) | (x ≈ xout[jout]))
+                    #set up cubic Hermite
+                    u = h*f₀
+                    v = h*f₃
+                    H₃ =  2yₚ  + u - 2y + v
+                    H₂ = -3yₚ - 2u + 3y - v
+                    #interpolate at all points that have been passed or met
+                    while (jout <= nout) && (x >= xout[jout])
+                        ξ = (xout[jout] - xₚ)/h
+                        yout[jout] = yₚ + ξ*(u + ξ*(H₂ + ξ*H₃))
+                        jout += 1
+                    end
                 end
             end
             #f₃ is now at the beginning of the next interval
