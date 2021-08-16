@@ -12,7 +12,6 @@ plot(x, y, legend=false, xlabel="x", ylabel="y");
 ```
 ![example](img/example.png)
 
-and efficiently.
 ```julia
 x = LinRange(0, 3, 100)
 y = zeros(100)
