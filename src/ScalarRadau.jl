@@ -1,6 +1,7 @@
 module ScalarRadau
 
 using StaticArrays: SMatrix, SVector
+using ForwardDiff: derivative
 
 export radau, radau!
 
@@ -29,6 +30,16 @@ const e₃ = -1/3
 
 #-------------------------------------------------------------------------------
 #support functions
+
+function ∂F∂y(F::T, x, y, param, f₀, h, ϵ)::Float64 where {T}
+    #try a regular old finite difference
+    ∂y = ϵ*h
+    if ∂y > sqrt(eps(y))*1e-2
+        return (F(x, y + ∂y, param) - f₀)/∂y
+    else
+        return derivative(y′ -> F(x, y′, param), y)
+    end
+end
 
 function Jacobian(h::Float64, dfdy::Float64)::SMatrix{3,3,Float64,9}
     #temporary
@@ -138,7 +149,7 @@ end
 #main function
 
 """
-    radau(yout, xout, F, y₀, x₀, xₙ, nout, param=nothing; rtol=1e-6, atol=1e-6, facmax=100, facmin=0.01, κ=1e-3, ϵ=0.25, maxnwt=7, maxstp=1000000)
+    radau!(yout, xout, F, y₀, x₀, xₙ, nout, param=nothing; rtol=1e-6, atol=1e-6, facmax=100, facmin=0.01, κ=1e-3, ϵ=0.25, maxnwt=7, maxstp=1000000)
 
 Solve a stiff, scalar ODE, sampling the solution in-place at the coordinates determined by `xout`
 
@@ -173,7 +184,7 @@ function radau!(yout::Union{AbstractVector{<:Real},Tuple}, #output values to fil
                 ϵ::Float64=0.25, #finite diff fraction of step size
                 maxnwt::Int=7, #max Newton iterations before h reduction
                 maxstp::Int=1000000 #maximum number of steps before error
-                )::Float64 where {T}
+                ) where {T}
     #check direction
     @assert xₙ >= x₀
     #output points
@@ -196,11 +207,10 @@ function radau!(yout::Union{AbstractVector{<:Real},Tuple}, #output values to fil
     while x < xₙ
         #don't overshoot the end of the integration interval
         h = min(h, xₙ - x)
-        #finite diff dF/dy, precision not necessary in practice, can also hurt
-        dy = ϵ*h
-        dfdy = (F(x, y + dy, param) - f₀)/dy
+        #finite diff ∂F/∂y, precision not necessary in practice, can also hurt
+        ∂ = ∂F∂y(F, x, y, param, f₀, h, ϵ)
         #jacobian matrix
-        J = Jacobian(h, dfdy)
+        J = Jacobian(h, ∂)
         #x coordinates for function evaluations inside interval
         x₁, x₂, x₃ = xinit(x, h)
         #initial newton guesses, extrapolation appears to make things slower
@@ -223,9 +233,7 @@ function radau!(yout::Union{AbstractVector{<:Real},Tuple}, #output values to fil
                 #wipe the iteration counter
                 nnwt = 0
                 #reinitialize with the new step size
-                dy = ϵ*h
-                dfdy = (F(x, y + dfdy, param) - f₀)/dfdy
-                J = Jacobian(h, dfdy)
+                J = Jacobian(h, ∂F∂y(F, x, y, param, f₀, h, ϵ))
                 x₁, x₂, x₃ = xinit(x, h)
                 z₁, z₂, z₃ = 0.0, 0.0, 0.0
             end
