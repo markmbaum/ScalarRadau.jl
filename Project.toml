@@ -1,6 +1,6 @@
 name = "ScalarRadau"
 uuid = "52145ff8-3717-48bc-b8ab-44d3704098ee"
-authors = ["Mark Baum <markbaum@g.harvard.edu>"]
+authors = ["Mark Baum <markmbaum@protonmail.com>"]
 version = "1.0.3"
 
 [deps]

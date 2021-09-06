@@ -27,7 +27,7 @@ Some basic points of description:
 * Step size is adaptive and the initial step size is chosen automatically.
 * Functions implemented here expect to use `Float64` numbers.
 * Dense output for continuous solutions is implemented using cubic Hermite interpolation.
-* Approximate Jacobian evaluation is performed with a finite difference.
+* Approximate Jacobian evaluation is performed with a finite difference, but will use auto-differentiation as a backup
 * Because the equation is scalar and the 5th order Radau method has three stages, the Jacobian is always a 3 x 3 matrix. [Static arrays](https://github.com/JuliaArrays/StaticArrays.jl) are used for efficient Newton iterations.
 
 The implementation here is designed for a scenario where a stiff, scalar ODE must be solved repeatedly under different conditions. For example, you might need to solve the same stiff ODE with a range of different initial conditions or with many sets of system parameters. The module was originally written to solve the [Schwarzschild equation for radiative transfer](https://en.wikipedia.org/wiki/Schwarzschild%27s_equation_for_radiative_transfer) as part of [ClearSky.jl](https://github.com/markmbaum/ClearSky.jl), but it seemed like a good idea to split it off into its own repository.
