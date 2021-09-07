@@ -1,10 +1,9 @@
 name = "ScalarRadau"
 uuid = "52145ff8-3717-48bc-b8ab-44d3704098ee"
 authors = ["Mark Baum <markmbaum@protonmail.com>"]
-version = "1.0.3"
+version = "1.0.4"
 
 [deps]
-ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]

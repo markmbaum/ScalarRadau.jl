@@ -1,7 +1,6 @@
 module ScalarRadau
 
 using StaticArrays: SMatrix, SVector
-using ForwardDiff: derivative
 
 export radau, radau!
 
@@ -32,18 +31,15 @@ const e₃ = -1/3
 #support functions
 
 function ∂F∂y(F::T, x, y, param, f₀, h, ϵ)::Float64 where {T}
-    #try a regular old finite difference
-    ∂y = ϵ*h
-    if ∂y > sqrt(eps(y))*1e-2
-        return (F(x, y + ∂y, param) - f₀)/∂y
-    else
-        return derivative(y′ -> F(x, y′, param), y)
-    end
+    #don't use a step size that risks roundoff error
+    ∂y = max(ϵ*h, sqrt(eps(y)))
+    #compute a regular old forward diff
+    (F(x, y + ∂y, param) - f₀)/∂y
 end
 
-function Jacobian(h::Float64, dfdy::Float64)::SMatrix{3,3,Float64,9}
+function Jacobian(h::Float64, ∂::Float64)::SMatrix{3,3,Float64,9}
     #temporary
-    q::Float64 = h*dfdy
+    q::Float64 = h*∂
     #column-major storage   
     SMatrix{3,3,Float64,9}(
         1.0 - a₁₁*q,
@@ -77,27 +73,8 @@ function hinit(x₀::Float64,
 end
 
 #-------------------------------------------------------------------------------
-# wrappers, basically
+# wrappers
 
-"""
-    radau(F, y₀, x₀, xₙ, param=nothing; rtol=1e-6, atol=1e-6, facmax=100, facmin=0.01, κ=1e-3, ϵ=0.25, maxnwt=7, maxstp=1000000)
-
-Solve a stiff, scalar ODE, returning only the end value of `y`
-
-* `F`: ordinary differential equation in the form F(x, y, param), returning dy/dx
-* `y₀`: initial `y` value
-* `x₀`: initial `x` value
-* `xₙ`: end point of integration
-* `param`: extra parameters passed through to `F`, can be `Any` type, `nothing` by default
-* `rtol`: relative error tolerance
-* `atol`: absolute error tolerance
-* `facmax`: maximum fractional increase in step size from one step to the next
-* `facmin`: minimum fractional decrease in step size from one step to the next
-* `κ`: Newton stopping tolerance
-* `ϵ`: finite difference width as fraction of step size
-* `maxnwt`: maximum Newton iterations before step size reduction
-* `maxstp`: maximum number of step attemps before error
-"""
 function radau(F::T,
                y₀::Real,
                x₀::Real,
@@ -108,26 +85,6 @@ function radau(F::T,
     radau!((), (), F, y₀, x₀, xₙ, param; kwargs...)
 end
 
-"""
-    radau(F, y₀, x₀, xₙ, nout, param=nothing; rtol=1e-6, atol=1e-6, facmax=100, facmin=0.01, κ=1e-3, ϵ=0.25, maxnwt=7, maxstp=1000000)
-
-Solve a stiff, scalar ODE, returning evenly spaced samples between `x₀` and `xₙ`
-
-* `F`: ordinary differential equation in the form F(x, y, param), returning dy/dx
-* `y₀`: initial `y` value
-* `x₀`: initial `x` value
-* `xₙ`: end point of integration
-* `nout`: number of evenly spaced steps to return
-* `param`: extra parameters passed through to `F`, can be `Any` type, `nothing` by default
-* `rtol`: relative error tolerance
-* `atol`: absolute error tolerance
-* `facmax`: maximum fractional increase in step size from one step to the next
-* `facmin`: minimum fractional decrease in step size from one step to the next
-* `κ`: Newton stopping tolerance
-* `ϵ`: finite difference width as fraction of step size
-* `maxnwt`: maximum Newton iterations before step size reduction
-* `maxstp`: maximum number of step attemps before error
-"""
 function radau(F::T,
                y₀::Real,
                x₀::Real,
@@ -148,27 +105,6 @@ end
 #-------------------------------------------------------------------------------
 #main function
 
-"""
-    radau!(yout, xout, F, y₀, x₀, xₙ, nout, param=nothing; rtol=1e-6, atol=1e-6, facmax=100, facmin=0.01, κ=1e-3, ϵ=0.25, maxnwt=7, maxstp=1000000)
-
-Solve a stiff, scalar ODE, sampling the solution in-place at the coordinates determined by `xout`
-
-* `yout`: vector for output solution values
-* `xout`: vector of output solution coordinates
-* `F`: ordinary differential equation in the form F(x, y, param), returning dy/dx
-* `y₀`: initial `y` value
-* `x₀`: initial `x` value
-* `xₙ`: end point of integration
-* `param`: extra parameters passed through to `F`, can be `Any` type, `nothing` by default
-* `rtol`: relative error tolerance
-* `atol`: absolute error tolerance
-* `facmax`: maximum fractional increase in step size from one step to the next
-* `facmin`: minimum fractional decrease in step size from one step to the next
-* `κ`: Newton stopping tolerance
-* `ϵ`: finite difference width as fraction of step size
-* `maxnwt`: maximum Newton iterations before step size reduction
-* `maxstp`: maximum number of step attemps before error
-"""
 function radau!(yout::Union{AbstractVector{<:Real},Tuple}, #output values to fill
                 xout::Union{AbstractVector{<:Real},Tuple}, #output coordinates
                 F::T, #differential equation dy/dx = F(x,y,param)
