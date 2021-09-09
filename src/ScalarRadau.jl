@@ -30,18 +30,18 @@ const e₃ = -1/3
 #-------------------------------------------------------------------------------
 #support functions
 
-function ∂F∂y(F::T, x, y, param, f₀, h, ϵ)::Float64 where {T}
+function ∂F∂y(F::T, x, y, param, f₀, h, ϵ) where {T}
     #don't use a step size that risks roundoff error
     ∂y = max(ϵ*h, sqrt(eps(y)))
     #compute a regular old forward diff
     (F(x, y + ∂y, param) - f₀)/∂y
 end
 
-function Jacobian(h::Float64, ∂::Float64)::SMatrix{3,3,Float64,9}
+function Jacobian(h, ∂)::SMatrix{3,3}
     #temporary
-    q::Float64 = h*∂
+    q = h*∂
     #column-major storage   
-    SMatrix{3,3,Float64,9}(
+    SMatrix{3,3}(
         1.0 - a₁₁*q,
         -a₂₁*q,
         -a₃₁*q,
@@ -54,18 +54,14 @@ function Jacobian(h::Float64, ∂::Float64)::SMatrix{3,3,Float64,9}
     )
 end
 
-function xinit(x::Float64, h::Float64)::NTuple{3,Float64}
+function xinit(x, h)
     x₁ = x + h*c₁
     x₂ = x + h*c₂
     x₃ = x + h*c₃
     return x₁, x₂, x₃
 end
 
-function hinit(x₀::Float64,
-               xₙ::Float64,
-               f::Float64,
-               atol::Float64,
-               rtol::Float64)::Float64
+function hinit(x₀, xₙ, f, atol, rtol)
     x = max(abs(x₀), abs(xₙ))
     d = (1/x)^6 + abs(f)^6
     h = ((atol + rtol)/d)^(1/6)
@@ -75,28 +71,29 @@ end
 #-------------------------------------------------------------------------------
 # wrappers
 
-function radau(F::T,
-               y₀::Real,
+function radau(F::U,
+               y₀::T,
                x₀::Real,
                xₙ::Real,
                param=nothing;
                kwargs...
-               )::Float64 where {T}
+               ) where {U,T<:AbstractFloat}
     radau!((), (), F, y₀, x₀, xₙ, param; kwargs...)
 end
 
-function radau(F::T,
-               y₀::Real,
+function radau(F::U,
+               y₀::T,
                x₀::Real,
                xₙ::Real,
                nout::Int,
                param=nothing;
                kwargs...
-               )::NTuple{2,Vector{Float64}} where {T}
+               ) where {U,T<:AbstractFloat}
     @assert nout > 1 "number of output points should be greater than 1"
     #evenly spaced output points
-    x = LinRange(x₀, xₙ, nout)
-    y = zeros(Float64, nout)
+    x = range(x₀, xₙ, length=nout)
+    #space for results
+    y = zeros(T, nout)
     #integrate!
     radau!(y, x, F, y₀, x₀, xₙ, param; kwargs...)
     return x, y
@@ -105,33 +102,37 @@ end
 #-------------------------------------------------------------------------------
 #main function
 
-function radau!(yout::Union{AbstractVector{<:Real},Tuple}, #output values to fill
-                xout::Union{AbstractVector{<:Real},Tuple}, #output coordinates
-                F::T, #differential equation dy/dx = F(x,y,param)
-                y₀::Real, #initial value
+function radau!(yout::Union{AbstractVector{<:T},Tuple{}}, #output values to fill
+                xout::Union{AbstractVector{<:Real},Tuple{}}, #output coordinates
+                F::U, #differential equation dy/dx = F(x,y,param)
+                y₀::T, #initial value
                 x₀::Real, #initial coordinate
                 xₙ::Real, #stopping coordinate
                 param=nothing; #extra parameter(s) of whatever type
-                rtol::Float64=1e-6, #absolute component of error tolerance
-                atol::Float64=1e-6, #relative component of error tolerance
-                facmax::Float64=100.0, #maximum step size increase factor
-                facmin::Float64=0.01, #minimum step size decrease factor
-                κ::Float64=1e-3, #Newton stopping tuner
-                ϵ::Float64=0.25, #finite diff fraction of step size
-                maxnwt::Int=7, #max Newton iterations before h reduction
-                maxstp::Int=1000000 #maximum number of steps before error
-                ) where {T}
-    #check direction
+                rtol::Real=1e-6, #relative component of error tolerance
+                atol::Real=1e-6, #absolute component of error tolerance
+                facmax::Real=100.0, #maximum step size increase factor
+                facmin::Real=0.01, #minimum step size decrease factor
+                κ::Real=1e-3, #Newton stopping tuner
+                ϵ::Real=0.25, #finite diff fraction of step size
+                maxnewt::Real=7, #max Newton iterations before h reduction
+                maxstep::Real=1000000, #maximum number of steps before error
+                maxfail::Real=10 #maximum number of step failures before error
+                ) where {T<:AbstractFloat,U}
+    #basic checks
     @assert xₙ >= x₀
+    @assert rtol < 1
+    @assert facmax > 1
+    @assert 0 < facmin < 1
+    @assert 0 < κ < 1
+    @assert 0 < ϵ < 1
+    #initial function eval at x0
+    f₀ = F(x₀, y₀, param)
+    #set initial coordinates
+    x, y, _ = promote(x₀, y₀, f₀)
     #output points
     nout = length(xout)
     jout = 1 #tracking index
-    #uniform types
-    x = convert(Float64, x₀)
-    y = convert(Float64, y₀)
-    xₙ = convert(Float64, xₙ)
-    #initial function eval at x0
-    f₀ = F(x, y, param)
     #initial step size selection
     h₁ = hinit(x, xₙ, f₀, atol, rtol)
     h₂ = hinit(x, xₙ, F(x + h₁, y + h₁*f₀, param), atol, rtol)
@@ -139,7 +140,7 @@ function radau!(yout::Union{AbstractVector{<:Real},Tuple}, #output values to fil
     #allocation, essentially, to keep f₃ in scope
     f₃ = 0.0
     #counter
-    nstp = 0
+    nstep = 0
     while x < xₙ
         #don't overshoot the end of the integration interval
         h = min(h, xₙ - x)
@@ -154,20 +155,18 @@ function radau!(yout::Union{AbstractVector{<:Real},Tuple}, #output values to fil
         #newton iterations
         ΔZ = Inf # ∞ norm of changes to solution
         η = κ*(rtol*abs(y) + atol) #termination threshold
-        nnwt::Int64 = 0
-        nfail::Int64 = 0
+        nnewt = 0
+        nfail = 0
         while ΔZ > η
-            if nnwt == maxnwt
+            if nnewt == maxnewt
                 #count the convergence failure
                 nfail += 1
                 #cut off unending disasters
-                if nfail == 10
-                    error("repeated Newton convergence failures ($nfail) in Radau")
-                end
+                (nfail == maxfail) && error("repeated Newton convergence failures ($nfail) in Radau")
                 #steeply reduce step size
                 h /= 10.0
                 #wipe the iteration counter
-                nnwt = 0
+                nnewt = 0
                 #reinitialize with the new step size
                 J = Jacobian(h, ∂F∂y(F, x, y, param, f₀, h, ϵ))
                 x₁, x₂, x₃ = xinit(x, h)
@@ -178,7 +177,7 @@ function radau!(yout::Union{AbstractVector{<:Real},Tuple}, #output values to fil
             f₂ = F(x₂, y + z₂, param)
             f₃ = F(x₃, y + z₃, param)
             #newton system evaluation β = (h * Af) - z
-            β = SVector{3,Float64}(
+            β = SVector{3}(
                 h*(a₁₁*f₁ + a₁₂*f₂ + a₁₃*f₃) - z₁,
                 h*(a₂₁*f₁ + a₂₂*f₂ + a₂₃*f₃) - z₂,
                 h*(a₃₁*f₁ + a₃₂*f₂ + a₃₃*f₃) - z₃
@@ -192,7 +191,7 @@ function radau!(yout::Union{AbstractVector{<:Real},Tuple}, #output values to fil
             #norm of updates
             ΔZ = abs(δ₁) + abs(δ₂) + abs(δ₃)
             #count
-            nnwt += 1
+            nnewt += 1
         end
         #scaled error estimate
         ze = (f₀*h + z₁*e₁ + z₂*e₂ + z₃*e₃)/5
@@ -207,31 +206,29 @@ function radau!(yout::Union{AbstractVector{<:Real},Tuple}, #output values to fil
             x += h
             y += z₃
             #dense output
-            @inbounds begin 
-                if (jout <= nout) && ((x > xout[jout]) | (x ≈ xout[jout]))
-                    #set up cubic Hermite
-                    u = h*f₀
-                    v = h*f₃
-                    H₃ =  2yₚ  + u - 2y + v
-                    H₂ = -3yₚ - 2u + 3y - v
-                    #interpolate at all points that have been passed or met
-                    while (jout <= nout) && (x >= xout[jout])
-                        ξ = (xout[jout] - xₚ)/h
-                        yout[jout] = yₚ + ξ*(u + ξ*(H₂ + ξ*H₃))
-                        jout += 1
-                    end
+            @inbounds if (jout <= nout) && ((x > xout[jout]) | (x ≈ xout[jout]))
+                #set up cubic Hermite
+                u = h*f₀
+                v = h*f₃
+                H₃ =  2yₚ  + u - 2y + v
+                H₂ = -3yₚ - 2u + 3y - v
+                #interpolate at all points that have been passed or met
+                while (jout <= nout) && (x >= xout[jout])
+                    ξ = (xout[jout] - xₚ)/h
+                    yout[jout] = yₚ + ξ*(u + ξ*(H₂ + ξ*H₃))
+                    jout += 1
                 end
             end
             #f₃ is now at the beginning of the next interval
             f₀ = f₃
         end
         #count
-        nstp += 1
-        if nstp == maxstp
-            error("maximum number of steps/attempts ($maxstp) reached in radau @ nx=$x y=$y h=$h")
+        nstep += 1
+        if nstep == maxstep
+            error("maximum number of steps/attempts ($maxstep) reached in radau @ nx=$x y=$y h=$h")
         end
         #safety factor, loosely dependent on number of newton iterations
-        facsaf = 0.9*(maxnwt + 1)/(maxnwt + nnwt)
+        facsaf = 0.9*(maxnewt + 1)/(maxnewt + nnewt)
         #step size selection, double sqrt faster than ^(1/4)
         h *= min(facmax, max(facmin, facsaf*sqrt(sqrt(1/err))))
     end

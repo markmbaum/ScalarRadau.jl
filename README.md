@@ -25,7 +25,7 @@ This module contains a lightweight implementation of the classic 5th order [Rada
 
 Some basic points of description:
 * Step size is adaptive and the initial step size is chosen automatically.
-* Functions implemented here expect to use `Float64` numbers.
+* Functions implemented here mostly type-flexible. The dependent variable (`y₀`, `yout`) is restricted to `<:AbstractFloat`. Also, your ODE should not return anything that isn't `<:Real`.
 * Dense output for continuous solutions is implemented using cubic Hermite interpolation.
 * Approximate Jacobian evaluation is performed with a simple finite difference, which costs one function evaluation for each attempted step.
 * Because the equation is scalar and the 5th order Radau method has three stages, the Jacobian is always a 3 x 3 matrix. [Static arrays](https://github.com/JuliaArrays/StaticArrays.jl) are used for efficient quasi-Newton iterations.
@@ -58,19 +58,19 @@ The "function" `F` can be any callable object, as long as it can be called with 
 For full control over output points, the in-place function is
 
 ```julia
-radau!(yout, xout, F, y₀, x₀, xₙ, param=nothing; rtol=1e-6, atol=1e-6, facmax=100.0, facmin=0.01, κ=1e-3, ϵ=0.25, maxnwt=7, maxstp=1000000)
+radau!(yout, xout, F, y₀, x₀, xₙ, param=nothing; rtol=1e-6, atol=1e-6, facmax=100.0, facmin=0.01, κ=1e-3, ϵ=0.25, maxnewt=7, maxstep=1000000, maxfail=10)
 ```
 Mandatory function arguments are
 * `yout` - vector where output points will be written
 * `xout` - sorted vector of `x` values where output points should be sampled
-* `F` - scalar ODE in the form `F(x, y, param)`
+* `F` - scalar ODE in the form `dy/dx = F(x, y, param)`
 * `y₀` - initial value for `y`
 * `x₀` - starting point for `x`
 * `xₙ` - end point of the integration
 
-The optional `param` argument is `nothing` by default, but it may be any type and is meant for scenarios where extra information must be accessible to the ODE function. It is passed to your ODE function whenever it's evaluated.
+The optional `param` argument is `nothing` by default, but it may be any type and is meant for scenarios where extra information must be accessible to the ODE function. It is passed to `F` whenever it's called.
 
-The coordinates of the output points (`xout`) should be between `x₀` and `xₙ` and they should be in ascending order. They are not checked for integrity before integrating, though. The only check performed is `xₙ > x₀`, or that the integration isn't going backward.
+The coordinates of the output points (`xout`) should be between `x₀` and `xₙ` and they should be in ascending order. They are not checked for integrity before integrating. The only check performed is `xₙ > x₀`, or that the integration isn't going backward.
 
 Keyword arguments are
 * `rtol` - relative error tolerance
@@ -79,10 +79,13 @@ Keyword arguments are
 * `facmin` - minimum fraction that the step size may decrease, compared to the previous step
 * `κ` (kappa) - stopping tolerance for Newton iterations
 * `ϵ` (epsilon) - fraction of current step size used for finite difference Jacobian approximation
-* `maxnwt` - maximum number of Newton iterations before step size reduction
-* `maxstp` - maximum number of steps befor the solver stops and throws an error
+* `maxnewt` - maximum number of Newton iterations before step size reduction
+* `maxstep` - maximum number of steps before the solver stops and throws an error
+* `maxfail` - maximum number of Newton convergence failures before error
 
-Two other functions are available to make different output options convenient. Both of them use the in-place version internally.
+The `maxnewt`,  `maxstep`, and `maxfail` arguments are not restricted to integers, so they can be set to `Inf` to effectively disable them.
+
+Two other functions, described below, are available to make different output options convenient. Both of them use the in-place version internally.
 
 ### Evenly Spaced Output
 
