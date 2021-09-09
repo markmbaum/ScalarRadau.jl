@@ -91,7 +91,7 @@ function radau(F::U,
                ) where {U,T<:AbstractFloat}
     @assert nout > 1 "number of output points should be greater than 1"
     #evenly spaced output points
-    x = range(x₀, xₙ, length=nout)
+    x = LinRange(x₀, xₙ, nout)
     #space for results
     y = zeros(T, nout)
     #integrate!
