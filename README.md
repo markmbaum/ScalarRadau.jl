@@ -3,7 +3,7 @@
 [![Build Status](https://github.com/markmbaum/ScalarRadau.jl/workflows/CI/badge.svg)](https://github.com/markmbaum/ScalarRadau.jl/actions)
 [![Codecov](https://img.shields.io/codecov/c/github/markmbaum/ScalarRadau.jl?logo=Codecov)](https://app.codecov.io/gh/markmbaum/ScalarRadau.jl)
 
-Solve a stiff, *scalar* differential equation accurately and efficiently
+Solve a *scalar* differential equation with accuracy, efficiency, and stability
 ```julia
 using BenchmarkTools, ScalarRadau, Plots
 F(x, y, p) = 50*(cos(x) - y);
@@ -21,16 +21,16 @@ y = zeros(100)
 
 -----
 
-This module contains a lightweight implementation of the classic 5th order [Radau IIA method](https://link.springer.com/referenceworkentry/10.1007%2F978-3-540-70529-1_139) for a **scalar** ordinary differential equation (ODE) in Julia. The algorithm is famously effective for stiff ODEs. Implementation mostly follows the description in chapter IV.8 in [Solving Ordinary Differential Equations II](https://www.springer.com/gp/book/9783540604525), by Ernst Hairer and Gerhard Wanner, with a couple small changes that were found to be beneficial for scalar equations.
+This module contains a lightweight implementation of the classic 5th order [Radau IIA method](https://link.springer.com/referenceworkentry/10.1007%2F978-3-540-70529-1_139) for a **scalar** ordinary differential equation (ODE) in Julia. The algorithm is famously effective when the stability of the ODE solving method is a priority. It is "stiffly accurate" and A-B-L stable. Implementation mostly follows the description in chapter IV.8 in [Solving Ordinary Differential Equations II](https://www.springer.com/gp/book/9783540604525), by Ernst Hairer and Gerhard Wanner.
 
 Some basic points of description:
 * Step size is adaptive and the initial step size is chosen automatically.
-* Functions implemented here mostly type-flexible. The dependent variable (`y₀`, `yout`) is restricted to `<:AbstractFloat`. Also, your ODE should not return anything that isn't `<:Real`.
+* Functions implemented here mostly type-flexible. The dependent variable (`y₀`, `yout`) is restricted to `<:AbstractFloat`. Also, your ODE probably should not return anything that isn't `<:Real`.
 * Dense output for continuous solutions is implemented using cubic Hermite interpolation.
 * Approximate Jacobian evaluation is performed with a simple finite difference, which costs one function evaluation for each attempted step.
 * Because the equation is scalar and the 5th order Radau method has three stages, the Jacobian is always a 3 x 3 matrix. [Static arrays](https://github.com/JuliaArrays/StaticArrays.jl) are used for efficient quasi-Newton iterations.
 
-The implementation here is designed for a scenario where a stiff, scalar ODE must be solved repeatedly under different conditions. For example, you might need to solve the same stiff ODE with a range of different initial conditions or with many sets of system parameters. The module was originally written to solve the [Schwarzschild equation for radiative transfer](https://en.wikipedia.org/wiki/Schwarzschild%27s_equation_for_radiative_transfer) as part of [ClearSky.jl](https://github.com/markmbaum/ClearSky.jl), but it seemed like a good idea to split it off into its own repository.
+The implementation here is designed for a scenario where a scalar ODE must be solved repeatedly and the stability of the solver is really important. The module was originally written to solve the [Schwarzschild equation for radiative transfer](https://en.wikipedia.org/wiki/Schwarzschild%27s_equation_for_radiative_transfer) as part of [ClearSky.jl](https://github.com/markmbaum/ClearSky.jl). In this case, the stability properties of the solver are crucial because they prevent non-physical "overshoots."
 
 The solver functions specialize directly on the ODE provided. This is slightly different than [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl), which uses a two-step system of defining an ODE problem with one function then solving it with another function, but if you need to solve a stiff system of ODEs instead of a scalar equation, look [here](https://diffeq.sciml.ai/stable/solvers/ode_solve/#Stiff-Problems). Specifically, the vector implementation of the same Radau method is called [`RadauIIA5`](https://diffeq.sciml.ai/stable/solvers/ode_solve/#Fully-Implicit-Runge-Kutta-Methods-(FIRK)).
 
