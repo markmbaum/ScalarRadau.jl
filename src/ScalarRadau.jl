@@ -71,13 +71,13 @@ end
 #-------------------------------------------------------------------------------
 # wrappers
 
-function radau(F::U,
-               y₀::T,
+function radau(F::T,
+               y₀::Real,
                x₀::Real,
                xₙ::Real,
                param=nothing;
                kwargs...
-               ) where {U,T<:AbstractFloat}
+               ) where {T}
     radau!((), (), F, y₀, x₀, xₙ, param; kwargs...)
 end
 
@@ -88,7 +88,7 @@ function radau(F::U,
                nout::Int,
                param=nothing;
                kwargs...
-               ) where {U,T<:AbstractFloat}
+               ) where {U,T<:Real}
     @assert nout > 1 "number of output points should be greater than 1"
     #evenly spaced output points
     x = LinRange(x₀, xₙ, nout)
@@ -118,7 +118,7 @@ function radau!(yout::Union{AbstractVector{<:T},Tuple{}}, #output values to fill
                 maxnewt::Real=7, #max Newton iterations before h reduction
                 maxstep::Real=1000000, #maximum number of steps before error
                 maxfail::Real=10 #maximum number of step failures before error
-                ) where {T<:AbstractFloat,U}
+                ) where {T<:Real,U}
     #basic checks
     @assert xₙ >= x₀
     @assert rtol < 1
@@ -126,10 +126,11 @@ function radau!(yout::Union{AbstractVector{<:T},Tuple{}}, #output values to fill
     @assert 0 < facmin < 1
     @assert 0 < κ < 1
     @assert 0 < ϵ < 1
-    #initial function eval at x0
-    f₀ = F(x₀, y₀, param)
     #set initial coordinates
-    x, y, _ = promote(x₀, y₀, f₀)
+    x = convert(T, x₀)
+    y = convert(T, y₀)
+    #initial function eval at x0
+    f₀ = F(x, y, param)
     #output points
     nout = length(xout)
     jout = 1 #tracking index
@@ -138,7 +139,7 @@ function radau!(yout::Union{AbstractVector{<:T},Tuple{}}, #output values to fill
     h₂ = hinit(x, xₙ, F(x + h₁, y + h₁*f₀, param), atol, rtol)
     h = min(h₁, h₂)
     #allocation, essentially, to keep f₃ in scope
-    f₃ = 0.0
+    f₃ = zero(f₀)
     #counter
     nstep = 0
     while x < xₙ
@@ -151,7 +152,7 @@ function radau!(yout::Union{AbstractVector{<:T},Tuple{}}, #output values to fill
         #x coordinates for function evaluations inside interval
         x₁, x₂, x₃ = xinit(x, h)
         #initial newton guesses, extrapolation appears to make things slower
-        z₁, z₂, z₃ = 0.0, 0.0, 0.0
+        z₁, z₂, z₃ = zero(T), zero(T), zero(T)
         #newton iterations
         ΔZ = Inf # ∞ norm of changes to solution
         η = κ*(rtol*abs(y) + atol) #termination threshold
@@ -170,14 +171,14 @@ function radau!(yout::Union{AbstractVector{<:T},Tuple{}}, #output values to fill
                 #reinitialize with the new step size
                 J = Jacobian(h, ∂F∂y(F, x, y, param, f₀, h, ϵ))
                 x₁, x₂, x₃ = xinit(x, h)
-                z₁, z₂, z₃ = 0.0, 0.0, 0.0
+                z₁, z₂, z₃ = zero(T), zero(T), zero(T)
             end
             #function evaluations
             f₁ = F(x₁, y + z₁, param)
             f₂ = F(x₂, y + z₂, param)
             f₃ = F(x₃, y + z₃, param)
             #newton system evaluation β = (h * Af) - z
-            β = SVector{3}(
+            β = SVector{3,T}(
                 h*(a₁₁*f₁ + a₁₂*f₂ + a₁₃*f₃) - z₁,
                 h*(a₂₁*f₁ + a₂₂*f₂ + a₂₃*f₃) - z₂,
                 h*(a₃₁*f₁ + a₃₂*f₂ + a₃₃*f₃) - z₃

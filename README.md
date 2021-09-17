@@ -14,7 +14,7 @@ plot(x, y, legend=false, xlabel="x", ylabel="y");
 
 ```julia
 x = LinRange(0, 3, 100)
-y = zeros(100)
+y = zeros(length(x))
 @btime radau!($y, $x, $F, 0.1, 0.0, 3.0);
   5.667 μs (2 allocations: 1.75 KiB)
 ```
@@ -25,7 +25,7 @@ This module contains a lightweight implementation of the classic 5th order [Rada
 
 Some basic points of description:
 * Step size is adaptive and the initial step size is chosen automatically.
-* Functions implemented here mostly type-flexible. The dependent variable (`y₀`, `yout`) is restricted to `<:AbstractFloat`. Also, your ODE probably should not return anything that isn't `<:Real`.
+* Functions implemented here mostly type-flexible. The dependent variable (`y₀`, `yout`) is restricted to `<:Real`. Also, your ODE should be type stable and probably should not return anything that isn't `<:Real`.
 * Dense output for continuous solutions is implemented using cubic Hermite interpolation.
 * Approximate Jacobian evaluation is performed with a simple finite difference, which costs one function evaluation for each attempted step.
 * Because the equation is scalar and the 5th order Radau method has three stages, the Jacobian is always a 3 x 3 matrix. [Static arrays](https://github.com/JuliaArrays/StaticArrays.jl) are used for efficient quasi-Newton iterations.
@@ -47,7 +47,7 @@ To solve an ODE, first define it as a function, then pass it to the `radau` func
 ```julia
 using ScalarRadau
 F(x, y, param) = -y
-x, y = radau(F, 1, 0, 2, 25)
+x, y = radau(F, 1.0, 0, 2, 25)
 ```
 The snippet above solves the equation `dy/dx = -y`, starting at `y=1`, between `x=0` and `x=2`, and returns 25 evenly spaced points in the solution interval.
 
