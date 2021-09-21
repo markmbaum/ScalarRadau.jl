@@ -30,11 +30,11 @@ const e₃ = -1/3
 #-------------------------------------------------------------------------------
 #support functions
 
-function ∂F∂y(F::T, x, y, param, f₀, h, ϵ) where {T}
+function ∂f∂y(𝒇::T, x, y, param, f₀, h, ϵ) where {T}
     #don't use a step size that risks roundoff error
     ∂y = max(ϵ*h, sqrt(eps(y)))
     #compute a regular old forward diff
-    (F(x, y + ∂y, param) - f₀)/∂y
+    (𝒇(x, y + ∂y, param) - f₀)/∂y
 end
 
 function Jacobian(h, ∂)::SMatrix{3,3}
@@ -71,54 +71,55 @@ end
 #-------------------------------------------------------------------------------
 # wrappers
 
-function radau(F::T,
+function radau(𝒇::F,
                y₀::Real,
                x₀::Real,
                xₙ::Real,
                param=nothing;
                kwargs...
-               ) where {T}
-    radau!((), (), F, y₀, x₀, xₙ, param; kwargs...)
+               ) where {F}
+    radau!((), (), 𝒇, y₀, x₀, xₙ, param; kwargs...)
 end
 
-function radau(F::U,
-               y₀::T,
+function radau(𝒇::F,
+               y₀::Real,
                x₀::Real,
                xₙ::Real,
                nout::Int,
                param=nothing;
                kwargs...
-               ) where {U,T<:Real}
+               ) where {F}
     @assert nout > 1 "number of output points should be greater than 1"
+    #make y float
+    y₀ = float(y₀)
     #evenly spaced output points
     x = LinRange(x₀, xₙ, nout)
     #space for results
-    y = zeros(T, nout)
+    y = zeros(typeof(y₀), nout)
     #integrate!
-    radau!(y, x, F, y₀, x₀, xₙ, param; kwargs...)
+    radau!(y, x, 𝒇, y₀, x₀, xₙ, param; kwargs...)
     return x, y
 end
 
 #-------------------------------------------------------------------------------
 #main function
 
-function radau!(yout::Union{AbstractVector{<:T},Tuple{}}, #output values to fill
-                xout::Union{AbstractVector{<:Real},Tuple{}}, #output coordinates
-                F::U, #differential equation dy/dx = F(x,y,param)
-                y₀::T, #initial value
-                x₀::Real, #initial coordinate
-                xₙ::Real, #stopping coordinate
-                param=nothing; #extra parameter(s) of whatever type
-                rtol::Real=1e-6, #relative component of error tolerance
-                atol::Real=1e-6, #absolute component of error tolerance
-                facmax::Real=100.0, #maximum step size increase factor
-                facmin::Real=0.01, #minimum step size decrease factor
-                κ::Real=1e-3, #Newton stopping tuner
-                ϵ::Real=0.25, #finite diff fraction of step size
-                maxnewt::Real=7, #max Newton iterations before h reduction
-                maxstep::Real=1000000, #maximum number of steps before error
-                maxfail::Real=10 #maximum number of step failures before error
-                ) where {T<:Real,U}
+function radau!(yout::Union{AbstractVector{<:Real},Tuple{}},
+                xout::Union{AbstractVector{<:Real},Tuple{}},
+                𝒇::F,
+                y₀::Real,
+                x₀::Real,
+                xₙ::Real,
+                param=nothing;
+                rtol::Real=1e-6,
+                atol::Real=1e-6,
+                facmax::Real=100.0,
+                facmin::Real=0.01,
+                κ::Real=1e-3,
+                ϵ::Real=0.25,
+                maxnewt::Int=7,
+                maxstep::Int=1000000,
+                maxfail::Int=10) where {F}
     #basic checks
     @assert xₙ >= x₀
     @assert rtol < 1
@@ -127,16 +128,15 @@ function radau!(yout::Union{AbstractVector{<:T},Tuple{}}, #output values to fill
     @assert 0 < κ < 1
     @assert 0 < ϵ < 1
     #set initial coordinates
-    x = convert(T, x₀)
-    y = convert(T, y₀)
+    x, y = float(x₀), float(y₀)
     #initial function eval at x0
-    f₀ = F(x, y, param)
+    f₀ = 𝒇(x, y, param)
     #output points
     nout = length(xout)
     jout = 1 #tracking index
     #initial step size selection
     h₁ = hinit(x, xₙ, f₀, atol, rtol)
-    h₂ = hinit(x, xₙ, F(x + h₁, y + h₁*f₀, param), atol, rtol)
+    h₂ = hinit(x, xₙ, 𝒇(x + h₁, y + h₁*f₀, param), atol, rtol)
     h = min(h₁, h₂)
     #allocation, essentially, to keep f₃ in scope
     f₃ = zero(f₀)
@@ -145,14 +145,14 @@ function radau!(yout::Union{AbstractVector{<:T},Tuple{}}, #output values to fill
     while x < xₙ
         #don't overshoot the end of the integration interval
         h = min(h, xₙ - x)
-        #finite diff ∂F/∂y, precision not necessary in practice, can also hurt
-        ∂ = ∂F∂y(F, x, y, param, f₀, h, ϵ)
+        #finite diff ∂f/∂y, precision not necessary in practice, can also hurt
+        ∂ = ∂f∂y(𝒇, x, y, param, f₀, h, ϵ)
         #jacobian matrix
         J = Jacobian(h, ∂)
         #x coordinates for function evaluations inside interval
         x₁, x₂, x₃ = xinit(x, h)
         #initial newton guesses, extrapolation appears to make things slower
-        z₁, z₂, z₃ = zero(T), zero(T), zero(T)
+        z₁, z₂, z₃ = zero(y), zero(y), zero(y)
         #newton iterations
         ΔZ = Inf # ∞ norm of changes to solution
         η = κ*(rtol*abs(y) + atol) #termination threshold
@@ -169,16 +169,16 @@ function radau!(yout::Union{AbstractVector{<:T},Tuple{}}, #output values to fill
                 #wipe the iteration counter
                 nnewt = 0
                 #reinitialize with the new step size
-                J = Jacobian(h, ∂F∂y(F, x, y, param, f₀, h, ϵ))
+                J = Jacobian(h, ∂f∂y(𝒇, x, y, param, f₀, h, ϵ))
                 x₁, x₂, x₃ = xinit(x, h)
-                z₁, z₂, z₃ = zero(T), zero(T), zero(T)
+                z₁, z₂, z₃ = zero(y), zero(y), zero(y)
             end
             #function evaluations
-            f₁ = F(x₁, y + z₁, param)
-            f₂ = F(x₂, y + z₂, param)
-            f₃ = F(x₃, y + z₃, param)
+            f₁ = 𝒇(x₁, y + z₁, param)
+            f₂ = 𝒇(x₂, y + z₂, param)
+            f₃ = 𝒇(x₃, y + z₃, param)
             #newton system evaluation β = (h * Af) - z
-            β = SVector{3,T}(
+            β = SVector{3}(
                 h*(a₁₁*f₁ + a₁₂*f₂ + a₁₃*f₃) - z₁,
                 h*(a₂₁*f₁ + a₂₂*f₂ + a₂₃*f₃) - z₂,
                 h*(a₃₁*f₁ + a₃₂*f₂ + a₃₃*f₃) - z₃
