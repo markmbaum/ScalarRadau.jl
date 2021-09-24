@@ -216,7 +216,7 @@ function radau!(yout::Union{AbstractVector{<:Real},Tuple{}},
                 #interpolate at all points that have been passed or met
                 while (jout <= nout) && (x >= xout[jout])
                     ξ = (xout[jout] - xₚ)/h
-                    yout[jout] = yₚ + ξ*(u + ξ*(H₂ + ξ*H₃))
+                    yout[jout] += yₚ + ξ*(u + ξ*(H₂ + ξ*H₃))
                     jout += 1
                 end
             end
