@@ -72,6 +72,8 @@ The optional `param` argument is `nothing` by default, but it may be any type an
 
 The coordinates of the output points (`xout`) should be between `x₀` and `xₙ` and they should be in ascending order. They are not checked for integrity before integrating. The only check performed is `xₙ > x₀`, or that the integration isn't going backward.
 
+**When solving in-place, values in `yout` are added to, not overwritten.** This means that if `yout` is full of NaNs or any other non-zero values upon calling `radau!`, they will be present in the result. You must pre-fill `yout` with zeros on your own.
+
 Keyword arguments are
 * `rtol` - relative error tolerance
 * `atol` - absolute error tolerance
